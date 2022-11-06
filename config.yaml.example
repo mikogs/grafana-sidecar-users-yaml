@@ -1,0 +1,16 @@
+version: "1"
+database: /gen64/grafana_pv/grafana.db
+dry_run: yes
+run_once: no
+sleep: 10
+orgs:
+  - id: 1
+    admins:
+      - login: mikogs
+    editors:
+      - login: editor1
+      - login: editor2
+    viewers:
+      - login: viewer1
+      - login: viewer2
+

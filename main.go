@@ -1,50 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	gocli "github.com/mikogs/lib-go-cli"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"time"
 )
 
-const VERSION = "0.1.0"
-
 // DEFAULT_SLEEP is used when reading config fails and the program is set to ignore the error
 const DEFAULT_SLEEP = 10
-
-type Config struct {
-	Version string `yaml:"version"`
-	DB      string `yaml:"database"`
-	Orgs    []Org  `yaml:"orgs"`
-	DryRun  bool   `yaml:"dry_run"`
-	RunOnce bool   `yaml:"run_once"`
-	Sleep   int    `yaml:"sleep"`
-	// TODO: add reading config map instead
-}
-
-func (c *Config) SetFromYAMLFile(f string) error {
-	b, err := ioutil.ReadFile(f)
-	if err != nil {
-		return fmt.Errorf("Cannot read config file %s: %w", f, err)
-	}
-	err = yaml.Unmarshal(b, &c)
-	if err != nil {
-		return fmt.Errorf("Cannot unmarshal config yaml: %w", err)
-	}
-	if c.DB == "" {
-		return fmt.Errorf("'database' in config yaml is missing", err)
-	}
-	fi, err := os.Stat(c.DB)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("Database file from config.yaml does not exist", err)
-	}
-	if !fi.Mode().IsRegular() {
-		return fmt.Errorf("Database file from config.yaml is not a regular file", err)
-	}
-	return nil
-}
 
 type Org struct {
 	ID      int    `yaml:"id"`
@@ -75,40 +41,121 @@ func versionHandler(c *gocli.CLI) int {
 	return 0
 }
 
+func readConfig(f string, cfg *Config, ig string, once bool) int {
+	fmt.Fprintf(os.Stdout, "Reading config file %s...\n", f)
+	err := cfg.SetFromYAMLFile(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error with config file: %v\n", err.Error())
+		if ig == "false" || once {
+			return -1
+		} else {
+			fmt.Fprintf(os.Stderr, "Ignoring error and continuing to do nothing...\n")
+			return 1
+		}
+	}
+	return 0
+}
+
+func connectToDB(dbfile string, dry bool, ig string, once bool) (int, *sql.DB) {
+	var err error
+	var db *sql.DB
+	if dry {
+		fmt.Fprintf(os.Stdout, "Dry-run is set. No changes will be made\n")
+	} else {
+		db, err = sql.Open("sqlite3", dbfile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error with connecting to the database: %v\n", err.Error())
+			if ig == "false" || once {
+				return -1, nil
+			} else {
+				fmt.Fprintf(os.Stderr, "Ignoring error and continuing to do nothing...\n")
+				return 1, nil
+			}
+		}
+	}
+	return 0, db
+
+}
+
+func update(role string, login string, org int, db *sql.DB, ig string, once bool) int {
+	fmt.Fprintf(os.Stdout, "Setting login '%s' to %s for org %d...\n", login, role, org)
+	if _, err := db.Exec("UPDATE org_user SET role = ? WHERE user_id IN (SELECT id FROM user WHERE login=?);", role, login); err != nil {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "UPDATE query for Viewer failed to execute: %v\n", err.Error())
+			if ig == "false" || once {
+				return -1
+			} else {
+				fmt.Fprintf(os.Stderr, "Ignoring error and continuing to do nothing...\n")
+				return 1
+			}
+		}
+	}
+	return 0
+
+}
+
 func startHandler(c *gocli.CLI) int {
 	cfg := Config{}
-
+	var db *sql.DB
 	ch := make(chan int)
 	go func(ch chan int) {
 		for {
-			fmt.Fprintf(os.Stdout, "Reading config file %s...\n", c.Flag("config"))
-			err := cfg.SetFromYAMLFile(c.Flag("config"))
-			if err != nil {
-
-				fmt.Fprintf(os.Stderr, "Error with config file: %v\n", err.Error())
-				if c.Flag("ignore_errors") == "false" || cfg.RunOnce {
-					ch <- 1
-				} else {
-					fmt.Fprintf(os.Stderr, "Ignoring error and continuing to do nothing...\n")
-					cfg.Sleep = DEFAULT_SLEEP
-					goto SLEEP
-				}
+			r := readConfig(c.Flag("config"), &cfg, c.Flag("ignore_errors"), cfg.RunOnce)
+			if r == -1 {
+				ch <- 1
+			}
+			if r == 1 {
+				cfg.Sleep = DEFAULT_SLEEP
+				goto SLEEP
 			}
 
-			if cfg.DryRun {
-				fmt.Fprintf(os.Stdout, "Dry-run is set. No changes will be made\n")
+			r, db = connectToDB(cfg.DB, cfg.DryRun, c.Flag("ignore_errors"), cfg.RunOnce)
+			if r == -1 {
+				ch <- 1
 			}
+			if r == 1 {
+				cfg.Sleep = DEFAULT_SLEEP
+				goto SLEEP
+			}
+
 			for _, org := range cfg.Orgs {
 				fmt.Fprintf(os.Stdout, "Got org %v from the config file\n", org.ID)
 				for _, viewer := range org.Viewers {
-					fmt.Fprintf(os.Stdout, "Setting login '%s' to Viewer for org %d...\n", viewer.Login, org.ID)
+					r := update("Viewer", viewer.Login, org.ID, db, c.Flag("ignore_errors"), cfg.RunOnce)
+					if r == -1 {
+						ch <- 1
+					}
+					if r == 1 {
+						cfg.Sleep = DEFAULT_SLEEP
+						goto SLEEP
+					}
 				}
 				for _, editor := range org.Editors {
-					fmt.Fprintf(os.Stdout, "Setting login '%s' to Editor for org %d...\n", editor.Login, org.ID)
+					r := update("Editor", editor.Login, org.ID, db, c.Flag("ignore_errors"), cfg.RunOnce)
+					if r == -1 {
+						ch <- 1
+					}
+					if r == 1 {
+						cfg.Sleep = DEFAULT_SLEEP
+						goto SLEEP
+					}
+
 				}
 				for _, admin := range org.Admins {
-					fmt.Fprintf(os.Stdout, "Setting login '%s' to Admin for org %d...\n", admin.Login, org.ID)
+					r := update("Admin", admin.Login, org.ID, db, c.Flag("ignore_errors"), cfg.RunOnce)
+					if r == -1 {
+						ch <- 1
+					}
+					if r == 1 {
+						cfg.Sleep = DEFAULT_SLEEP
+						goto SLEEP
+					}
+
 				}
+			}
+
+			if !cfg.DryRun {
+				db.Close()
 			}
 		SLEEP:
 			if cfg.RunOnce {

@@ -1,5 +1,5 @@
 # grafana-sidecar-users-yaml
-Sidecar for Grafana that reads users from YAML and updates it in the database
+Sidecar for Grafana that reads users from YAML file and updates it in the database
 
 ### Building
 To build the binary just run `go build`
@@ -67,4 +67,27 @@ Do the following stes to add the program as a sidecar to your Grafana running in
 * add configuration as ConfigMap
 * add a sidecar (with built docker image) to your Grafana pod, with ConfigMap mounted in a path that is accessible by the program, and set `-c` to the configuration file in that path
 * ensure your Kubernetes cluster automatically updates volumes mounted from ConfigMaps
+
+In the below example, you can see the sidecar added to Grafana helm chart:
+
+    extraConfigmapMounts:
+      - name: sc-users
+        configMap: grafana-sc-users
+        mountPath: /etc/grafana/provisioning/sc-users
+        subPath: ''
+  
+    extraContainers: |-
+      - name: grafana-sc-users
+        image: mikogs/grafana-sidecar-users-yaml:0.1.0
+        imagePullPolicy: Always
+        args:
+          - "start"
+          - "-i"
+          - "-c"
+          - "/etc/grafana/provisioning/sc-users/users.yaml"
+        volumeMounts:
+          - mountPath: /etc/grafana/provisioning/sc-users
+            name: sc-users
+          - mountPath: /var/lib/grafana
+            name: storage
 

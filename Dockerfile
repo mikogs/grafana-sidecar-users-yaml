@@ -1,7 +1,7 @@
 FROM golang:alpine AS builder
 LABEL maintainer="Mikolaj Gasior"
 
-RUN apk add --update git bash openssh make
+RUN apk add --update git bash openssh make gcc musl-dev
 
 WORKDIR /go/src/github.com/mikogs/grafana-sidecar-users-yaml
 COPY . .

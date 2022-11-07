@@ -46,20 +46,20 @@ Program requires a configuration file, which is passed with `-c`. An example of 
           - login: viewer2
 
 | Key | Description | Value |
-|--------------|-----------|------------|
-| database | Path to grafana.db SQLite database | string |
-| dry_run | When true, no database queries will be executed | boolean |
-| run_once | When true, the program will run once and exit. Otherwise it will start as a daemon | boolean |
-| sleep | Seconds to wait before loop iterations | integer |
-| orgs | List of organisations with its admins, editors and viewers | [org] |
+|-----|-------------|-------|
+| database | Path to grafana.db SQLite database | `string` |
+| dry_run | When true, no database queries will be executed | `bool` |
+| run_once | When true, the program will run once and exit. Otherwise it will start as a daemon | `bool` |
+| sleep | Seconds to wait before loop iterations | `int` |
+| orgs | List of organisations with its admins, editors and viewers | `[org]` |
 
 `org` has the following fields:
 | Key | Description | Value |
 |---- | ----------- | ----- |
-| id | Organisation ID | integer |
-| admins | List of users | `[{ "login": string}]` |
-| editors | List of users |`[{ "login": string}]` |
-| viewers | List of users | `[{ "login": string}]` |
+| id | Organisation ID | `int` |
+| admins | List of users | `[{ "login": string }]` |
+| editors | List of users |`[{ "login": string }]` |
+| viewers | List of users | `[{ "login": string }]` |
 
 ### Example usage in Kubernetes
 Do the following stes to add the program as a sidecar to your Grafana running in Kubernetes cluster:

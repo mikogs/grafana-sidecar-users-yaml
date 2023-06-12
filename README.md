@@ -37,7 +37,7 @@ Program requires a configuration file, which is passed with `-c`. An example of 
     orgs:
       - id: 1
         admins:
-          - login: mikogs
+          - login: miko
         editors:
           - login: editor1
           - login: editor2
@@ -78,7 +78,7 @@ In the below example, you can see the sidecar added to Grafana helm chart:
   
     extraContainers: |-
       - name: grafana-sc-users
-        image: mikogs/grafana-sidecar-users-yaml:0.1.0
+        image: MikolajGasior/grafana-sidecar-users-yaml:0.1.0
         imagePullPolicy: Always
         args:
           - "start"

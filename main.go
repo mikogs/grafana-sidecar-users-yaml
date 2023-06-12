@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	gocli "github.com/mikogs/lib-go-cli"
+	gocli "github.com/MikolajGasior/go-mod-cli"
 	"os"
 	"time"
 )

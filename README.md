@@ -78,7 +78,7 @@ In the below example, you can see the sidecar added to Grafana helm chart:
   
     extraContainers: |-
       - name: grafana-sc-users
-        image: MikolajGasior/grafana-sidecar-users-yaml:0.1.0
+        image: mikogs/grafana-sidecar-users-yaml:0.1.0
         imagePullPolicy: Always
         args:
           - "start"

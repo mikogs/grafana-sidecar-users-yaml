@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	gocli "github.com/MikolajGasior/go-mod-cli"
+	gocli "github.com/go-phings/broccli"
 	"os"
 	"time"
 )
@@ -24,16 +24,16 @@ type User struct {
 }
 
 func main() {
-	cli := gocli.NewCLI("grafana-sidecar-users-yaml", "Updates Grafana user org role from file", "Mikolaj Gasior <miko@dsp.gs>")
+	cli := gocli.NewCLI("grafana-sidecar-users-yaml", "Updates Grafana user org role from file", "Mikolaj Gasior")
 	cmdStart := cli.AddCmd("start", "Starts the daemon", startHandler)
-	cmdStart.AddFlag("config", "c", "config", "YAML file with users", gocli.TypePathFile|gocli.MustExist|gocli.Required, nil)
-	cmdStart.AddFlag("quiet", "q", "", "Quite mode. Do not output anything", gocli.TypeBool, nil)
-	cmdStart.AddFlag("ignore_errors", "i", "", "Ignore errors and continue", gocli.TypeBool, nil)
+	cmdStart.AddFlag("config", "c", "config", "YAML file with users", gocli.TypePathFile, gocli.IsExistent|gocli.IsRequired)
+	cmdStart.AddFlag("quiet", "q", "", "Quite mode. Do not output anything", gocli.TypeBool, 0)
+	cmdStart.AddFlag("ignore_errors", "i", "", "Ignore errors and continue", gocli.TypeBool, 0)
 	_ = cli.AddCmd("version", "Prints version", versionHandler)
 	if len(os.Args) == 2 && (os.Args[1] == "-v" || os.Args[1] == "--version") {
 		os.Args = []string{"App", "version"}
 	}
-	os.Exit(cli.Run(os.Stdout, os.Stderr))
+	os.Exit(cli.Run())
 }
 
 func versionHandler(c *gocli.CLI) int {
